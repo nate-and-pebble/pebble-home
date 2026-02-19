@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { getSupabase } from "@/lib/supabase";
 
-export function BrainDump() {
+export function BrainDump({ onSaved }: { onSaved?: () => void }) {
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle"
@@ -16,18 +15,22 @@ export function BrainDump() {
 
     setStatus("sending");
 
-    const { error } = await getSupabase()
-      .from("brain_dumps")
-      .insert({ content: content.trim(), status: "new" });
+    try {
+      const res = await fetch("/api/brain-dumps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: content.trim() }),
+      });
 
-    if (error) {
-      console.error("Failed to save brain dump:", error);
-      setStatus("error");
-      setTimeout(() => setStatus("idle"), 3000);
-    } else {
+      if (!res.ok) throw new Error("Failed to save");
+
       setStatus("sent");
       setContent("");
+      onSaved?.();
       setTimeout(() => setStatus("idle"), 2000);
+    } catch {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 3000);
     }
   }
 
