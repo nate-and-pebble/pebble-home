@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 interface AgentRun {
   id: string;
@@ -10,6 +10,19 @@ interface AgentRun {
   heartbeat_at: string;
   completed_at: string | null;
   summary: string | null;
+}
+
+interface LogEntry {
+  id: string;
+  entry_type: string;
+  content: string;
+  created_at: string;
+}
+
+interface AgentRunsProps {
+  refreshKey?: number;
+  statusFilter?: string;
+  agentFilter?: string;
 }
 
 const statusStyles: Record<string, { label: string; className: string }> = {
@@ -44,28 +57,98 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-export function AgentRuns({ refreshKey }: { refreshKey?: number }) {
+function entryIcon(type: string): string {
+  switch (type) {
+    case "action":
+      return ">";
+    case "decision":
+      return "?";
+    case "handoff":
+      return "~";
+    case "error":
+      return "!";
+    case "claim":
+      return "+";
+    case "release":
+      return "-";
+    default:
+      return "*";
+  }
+}
+
+const POLL_INTERVAL = 15_000;
+
+export function AgentRuns({
+  refreshKey,
+  statusFilter,
+  agentFilter,
+}: AgentRunsProps) {
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [logs, setLogs] = useState<Record<string, LogEntry[]>>({});
+  const [logErrors, setLogErrors] = useState<Record<string, string>>({});
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchRuns = useCallback(async () => {
     try {
-      const res = await fetch("/api/agent/runs?limit=10");
-      if (!res.ok) return;
+      const params = new URLSearchParams({ limit: "20" });
+      if (statusFilter) params.set("status", statusFilter);
+      if (agentFilter) params.set("agent_id", agentFilter);
+      const res = await fetch(`/api/agent/runs?${params}`);
+      if (!res.ok) {
+        setError(`Failed to load runs (${res.status})`);
+        return;
+      }
       const json = await res.json();
       setRuns(json.data || []);
+      setError(null);
     } catch {
-      // silently fail
+      setError("Failed to connect to server");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter, agentFilter]);
 
+  // Initial fetch + refresh on key/filter change
   useEffect(() => {
+    setLoading(true);
     fetchRuns();
   }, [fetchRuns, refreshKey]);
+
+  // Auto-poll
+  useEffect(() => {
+    pollRef.current = setInterval(fetchRuns, POLL_INTERVAL);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchRuns]);
+
+  async function fetchLogs(runId: string) {
+    try {
+      const res = await fetch(`/api/agent/runs/${runId}/log`);
+      if (!res.ok) {
+        setLogErrors((prev) => ({
+          ...prev,
+          [runId]: `Failed to load logs (${res.status})`,
+        }));
+        return;
+      }
+      const json = await res.json();
+      setLogs((prev) => ({ ...prev, [runId]: json.data || [] }));
+      setLogErrors((prev) => {
+        const next = { ...prev };
+        delete next[runId];
+        return next;
+      });
+    } catch {
+      setLogErrors((prev) => ({
+        ...prev,
+        [runId]: "Failed to connect",
+      }));
+    }
+  }
 
   async function toggleExpand(runId: string) {
     if (expanded === runId) {
@@ -73,18 +156,19 @@ export function AgentRuns({ refreshKey }: { refreshKey?: number }) {
       return;
     }
     setExpanded(runId);
-    if (!logs[runId]) {
-      try {
-        const res = await fetch(`/api/agent/runs/${runId}/log`);
-        if (res.ok) {
-          const json = await res.json();
-          setLogs((prev) => ({ ...prev, [runId]: json.data || [] }));
-        }
-      } catch {
-        // silently fail
-      }
-    }
+    // Always re-fetch logs on expand (fresh data for active runs)
+    fetchLogs(runId);
   }
+
+  // Re-fetch logs for expanded run on each poll if the run is still active
+  useEffect(() => {
+    if (!expanded) return;
+    const run = runs.find((r) => r.id === expanded);
+    if (run?.status === "running") {
+      fetchLogs(expanded);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs]);
 
   if (loading) {
     return (
@@ -99,20 +183,34 @@ export function AgentRuns({ refreshKey }: { refreshKey?: number }) {
     );
   }
 
+  if (error && runs.length === 0) {
+    return (
+      <div className="rounded-lg border border-red-900/50 bg-red-950/20 px-4 py-3">
+        <p className="text-sm text-red-400">{error}</p>
+      </div>
+    );
+  }
+
   if (runs.length === 0) {
     return (
       <p className="text-center text-xs text-zinc-700 py-6">
-        No agent runs yet.
+        No agent runs{statusFilter ? ` with status "${statusFilter}"` : ""}{agentFilter ? ` for agent "${agentFilter}"` : ""}.
       </p>
     );
   }
 
   return (
     <div className="space-y-2">
+      {error && (
+        <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 px-3 py-2">
+          <p className="text-xs text-amber-400">{error}</p>
+        </div>
+      )}
       {runs.map((run) => {
         const style = statusStyles[run.status] || statusStyles.completed;
         const isExpanded = expanded === run.id;
         const runLogs = logs[run.id] || [];
+        const logError = logErrors[run.id];
 
         return (
           <div key={run.id}>
@@ -145,7 +243,10 @@ export function AgentRuns({ refreshKey }: { refreshKey?: number }) {
                 {run.summary && (
                   <p className="text-xs text-zinc-400">{run.summary}</p>
                 )}
-                {runLogs.length === 0 && (
+                {logError && (
+                  <p className="text-[10px] text-red-400">{logError}</p>
+                )}
+                {!logError && runLogs.length === 0 && (
                   <p className="text-[10px] text-zinc-600">No log entries.</p>
                 )}
                 {runLogs.map((entry) => (
@@ -168,30 +269,4 @@ export function AgentRuns({ refreshKey }: { refreshKey?: number }) {
       })}
     </div>
   );
-}
-
-interface LogEntry {
-  id: string;
-  entry_type: string;
-  content: string;
-  created_at: string;
-}
-
-function entryIcon(type: string): string {
-  switch (type) {
-    case "action":
-      return ">";
-    case "decision":
-      return "?";
-    case "handoff":
-      return "~";
-    case "error":
-      return "!";
-    case "claim":
-      return "+";
-    case "release":
-      return "-";
-    default:
-      return "*";
-  }
 }
