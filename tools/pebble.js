@@ -268,6 +268,93 @@ async function cmdTask(args) {
   process.exit(1);
 }
 
+async function cmdBulletins(args) {
+  const statusFilter = args.includes("--status")
+    ? args[args.indexOf("--status") + 1]
+    : null;
+
+  let endpoint = "/api/bulletins?";
+  if (statusFilter) endpoint += `status=${statusFilter}&`;
+
+  const json = await api("GET", endpoint);
+
+  if (!json.data || json.data.length === 0) {
+    console.log(`${DIM}No bulletins yet.${RESET}`);
+    return;
+  }
+
+  console.log(`${BOLD}Bulletins${RESET} (${json.pagination.total} total)\n`);
+  for (const b of json.data) {
+    const icon = b.status === "new" ? `${YELLOW}📢 NEW${RESET}` : `${DIM}📋${RESET}`;
+    const preview = b.content
+      ? b.content.length > 50
+        ? b.content.slice(0, 50) + "..."
+        : b.content
+      : "";
+    console.log(
+      `  ${CYAN}${b.id.slice(0, 8)}${RESET}  ${icon}  ${BOLD}${b.title}${RESET}  ${DIM}${timeAgo(b.created_at)}${RESET}`
+    );
+    if (preview) {
+      console.log(`           ${DIM}${preview}${RESET}`);
+    }
+  }
+}
+
+async function cmdBulletin(args) {
+  if (args.length === 0) {
+    console.error(
+      "Usage:\n  pebble bulletin add <title> [--content <content>]\n  pebble bulletin read <id>\n  pebble bulletin list"
+    );
+    process.exit(1);
+  }
+
+  if (args[0] === "add") {
+    const flagIdx = args.findIndex(
+      (a, i) => i > 0 && a.startsWith("--")
+    );
+    const titleParts =
+      flagIdx > 0 ? args.slice(1, flagIdx) : args.slice(1);
+    const title = titleParts.join(" ");
+
+    if (!title) {
+      console.error("Usage: pebble bulletin add <title> [--content <content>]");
+      process.exit(1);
+    }
+
+    const body = { title };
+    if (args.includes("--content")) {
+      body.content = args[args.indexOf("--content") + 1];
+    }
+
+    const result = await api("POST", "/api/bulletins", body);
+    console.log(
+      `${GREEN}Posted!${RESET} ${CYAN}${result.id.slice(0, 8)}${RESET}  ${result.title}`
+    );
+    return;
+  }
+
+  if (args[0] === "read") {
+    const id = args[1];
+    if (!id) {
+      console.error("Usage: pebble bulletin read <id>");
+      process.exit(1);
+    }
+    const result = await api("PATCH", `/api/bulletins/${id}`, { status: "read" });
+    console.log(
+      `${GREEN}Marked read!${RESET} ${CYAN}${result.id.slice(0, 8)}${RESET}  ${result.title}`
+    );
+    return;
+  }
+
+  if (args[0] === "list") {
+    await cmdBulletins(args.slice(1));
+    return;
+  }
+
+  console.error(`Unknown bulletin command: ${args[0]}\nUsage: pebble bulletin [add|read|list]`);
+  process.exit(1);
+}
+
 async function cmdStatus() {
   const json = await api("GET", "/api/status");
 
@@ -276,6 +363,7 @@ async function cmdStatus() {
   console.log(`  Uptime:      ${json.uptime}`);
   console.log(`  Brain Dumps: ${BOLD}${json.counts.brainDumps}${RESET}`);
   console.log(`  Tasks:       ${BOLD}${json.counts.totalTasks}${RESET} total, ${GREEN}${json.counts.tasksDone} done${RESET}`);
+  console.log(`  Bulletins:   ${BOLD}${json.counts.totalBulletins}${RESET} total, ${YELLOW}${json.counts.unreadBulletins} unread${RESET}`);
   console.log(`  Timestamp:   ${DIM}${json.timestamp}${RESET}\n`);
 }
 
@@ -298,6 +386,13 @@ ${BOLD}Commands:${RESET}
     add <title>             Create task (--priority, --description)
     update <id>             Update task (--status, --priority, --title)
     done <id>               Mark task as done
+
+  bulletins                 List bulletins (--status new|read)
+
+  bulletin [add|read|list]  Manage bulletins
+    add <title>             Post bulletin (--content <details>)
+    read <id>               Mark bulletin as read
+    list                    List bulletins
 
   status                    Show system status
 
@@ -327,6 +422,12 @@ async function main() {
       break;
     case "task":
       await cmdTask(args.slice(1));
+      break;
+    case "bulletins":
+      await cmdBulletins(args.slice(1));
+      break;
+    case "bulletin":
+      await cmdBulletin(args.slice(1));
       break;
     case "status":
       await cmdStatus();

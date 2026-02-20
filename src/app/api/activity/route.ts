@@ -4,7 +4,7 @@ import { withAuth } from "@/lib/api-auth";
 
 interface ActivityItem {
   id: string;
-  type: "brain_dump" | "task";
+  type: "brain_dump" | "task" | "bulletin";
   icon: string;
   text: string;
   time: string;
@@ -12,12 +12,12 @@ interface ActivityItem {
   created_at: string;
 }
 
-// GET /api/activity - combined feed (brain dumps + tasks, newest first)
+// GET /api/activity - combined feed (brain dumps + tasks + bulletins, newest first)
 export const GET = withAuth(async (req: NextRequest) => {
   const url = req.nextUrl;
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
 
-  const [brainDumps, tasks] = await Promise.all([
+  const [brainDumps, tasks, bulletins] = await Promise.all([
     getSupabase()
       .from("brain_dumps")
       .select("*")
@@ -25,6 +25,11 @@ export const GET = withAuth(async (req: NextRequest) => {
       .limit(limit),
     getSupabase()
       .from("tasks")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    getSupabase()
+      .from("bulletins")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(limit),
@@ -39,6 +44,12 @@ export const GET = withAuth(async (req: NextRequest) => {
   if (tasks.error) {
     return NextResponse.json(
       { error: tasks.error.message },
+      { status: 500 }
+    );
+  }
+  if (bulletins.error) {
+    return NextResponse.json(
+      { error: bulletins.error.message },
       { status: 500 }
     );
   }
@@ -71,6 +82,18 @@ export const GET = withAuth(async (req: NextRequest) => {
       time: t.created_at,
       status: t.status,
       created_at: t.created_at,
+    });
+  }
+
+  for (const b of bulletins.data || []) {
+    activity.push({
+      id: b.id,
+      type: "bulletin",
+      icon: b.status === "new" ? "📢" : "📋",
+      text: `Bulletin: ${b.title}`,
+      time: b.created_at,
+      status: b.status,
+      created_at: b.created_at,
     });
   }
 

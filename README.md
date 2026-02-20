@@ -53,6 +53,9 @@ All endpoints accept an optional `X-API-Key` header (required when `PEBBLE_API_K
 | `POST` | `/api/tasks` | Create task `{ title, description?, priority? }` |
 | `GET` | `/api/tasks` | List tasks `?page=&limit=&status=&priority=` |
 | `PATCH` | `/api/tasks/:id` | Update task `{ title?, status?, priority? }` |
+| `POST` | `/api/bulletins` | Create bulletin `{ title, content? }` |
+| `GET` | `/api/bulletins` | List bulletins `?page=&limit=&status=` |
+| `PATCH` | `/api/bulletins/:id` | Update bulletin `{ title?, content?, status? }` |
 | `GET` | `/api/activity` | Combined feed `?limit=` |
 | `GET` | `/api/status` | Health + stats (counts, uptime) |
 
@@ -86,6 +89,12 @@ Create `~/.pebble.json`:
 ./tools/pebble.js task update <id> --status in_progress
 ./tools/pebble.js task done <id>
 
+# Bulletins
+./tools/pebble.js bulletins
+./tools/pebble.js bulletins --status new
+./tools/pebble.js bulletin add "Built the auth flow" --content "Details here"
+./tools/pebble.js bulletin read <id>
+
 # Status
 ./tools/pebble.js status
 ```
@@ -98,6 +107,7 @@ src/
     api/
       brain-dumps/       # Brain dump CRUD endpoints
       tasks/             # Task CRUD endpoints
+      bulletins/         # Bulletin CRUD endpoints
       activity/          # Combined activity feed
       status/            # Health/stats endpoint
     layout.tsx           # Root layout (dark theme, fonts)
@@ -106,6 +116,7 @@ src/
   components/
     dashboard.tsx        # Main dashboard shell (client)
     brain-dump.tsx       # Brain dump form
+    bulletins.tsx        # Bulletin list with expand/read
     activity-feed.tsx    # Live activity feed
     task-queue.tsx       # Task list with status badges
     stats-cards.tsx      # Stats overview cards
@@ -140,4 +151,15 @@ tools/
 | priority | text | 'medium' |
 | created_at | timestamptz | now() |
 | completed_at | timestamptz | null |
+| metadata | jsonb | {} |
+
+### bulletins
+| Column | Type | Default |
+|--------|------|---------|
+| id | uuid | gen_random_uuid() |
+| title | text | required |
+| content | text | null |
+| status | text | 'new' |
+| created_at | timestamptz | now() |
+| read_at | timestamptz | null |
 | metadata | jsonb | {} |

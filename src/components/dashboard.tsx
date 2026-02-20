@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BrainDump } from "@/components/brain-dump";
 import { ActivityFeed } from "@/components/activity-feed";
 import { TaskQueue } from "@/components/task-queue";
+import { Bulletins } from "@/components/bulletins";
 import { StatsCards } from "@/components/stats-cards";
 import { StatusIndicator } from "@/components/status-indicator";
 
@@ -42,6 +43,17 @@ export function Dashboard() {
               <div className="h-px flex-1 bg-zinc-800/50" />
             </div>
             <BrainDump onSaved={handleDataChanged} />
+          </section>
+
+          {/* Bulletins */}
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-medium text-zinc-400">
+                Bulletins
+              </h2>
+              <div className="h-px flex-1 bg-zinc-800/50" />
+            </div>
+            <Bulletins refreshKey={refreshKey} />
           </section>
 
           {/* Activity Feed */}
