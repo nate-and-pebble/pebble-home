@@ -150,8 +150,49 @@ async function cmdBrain(args) {
     return;
   }
 
+  if (args[0] === "reply") {
+    const id = args[1];
+    const replyContent = args.slice(2).join(" ");
+    if (!id || !replyContent) {
+      console.error('Usage: pebble brain reply <id> "your reply"');
+      process.exit(1);
+    }
+    const result = await api("POST", `/api/brain-dumps/${id}/thread`, {
+      content: replyContent,
+      author: "pebble",
+    });
+    console.log(
+      `${GREEN}Replied!${RESET} ${CYAN}${result.id.slice(0, 8)}${RESET}  thread=${id.slice(0, 8)}`
+    );
+    return;
+  }
+
+  if (args[0] === "thread") {
+    const id = args[1];
+    if (!id) {
+      console.error("Usage: pebble brain thread <id>");
+      process.exit(1);
+    }
+    const json = await api("GET", `/api/brain-dumps/${id}/thread`);
+    if (!json.data || json.data.length === 0) {
+      console.log(`${DIM}No thread found.${RESET}`);
+      return;
+    }
+    console.log(`${BOLD}Thread${RESET} (${json.data.length} messages)\n`);
+    for (const msg of json.data) {
+      const author = msg.metadata?.author || "nate";
+      const authorColor = author === "pebble" ? CYAN : YELLOW;
+      const authorLabel = author === "pebble" ? "🤖 pebble" : "👤 nate";
+      console.log(
+        `  ${authorColor}${authorLabel}${RESET}  ${DIM}${timeAgo(msg.created_at)}${RESET}`
+      );
+      console.log(`  ${msg.content}\n`);
+    }
+    return;
+  }
+
   console.error(
-    `Unknown brain command: ${args[0]}\nUsage: pebble brain [list|add|status]`
+    `Unknown brain command: ${args[0]}\nUsage: pebble brain [list|add|status|reply|thread]`
   );
   process.exit(1);
 }
@@ -737,10 +778,12 @@ ${BOLD}Usage:${RESET}
   pebble <command> [args]
 
 ${BOLD}Commands:${RESET}
-  brain [list|add|status]   Manage brain dumps
+  brain [list|add|status|reply|thread]   Manage brain dumps
     list                    List brain dumps (--status <status>)
     add <content>           Create a brain dump
     status <id> <status>    Update brain dump status
+    reply <id> <content>    Reply to a brain dump (as pebble)
+    thread <id>             View full conversation thread
 
   tasks                     List tasks (--status, --priority filters)
 

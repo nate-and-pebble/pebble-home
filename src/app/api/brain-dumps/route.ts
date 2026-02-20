@@ -42,6 +42,7 @@ export const GET = withAuth(async (req: NextRequest) => {
   let query = getSupabase()
     .from("brain_dumps")
     .select("*", { count: "exact" })
+    .is("metadata->>thread_id", null)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 

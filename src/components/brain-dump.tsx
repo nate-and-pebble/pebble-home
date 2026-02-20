@@ -23,6 +23,119 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+function ThreadView({
+  brainDumpId,
+  onReplySent,
+}: {
+  brainDumpId: string;
+  onReplySent: () => void;
+}) {
+  const [thread, setThread] = useState<BrainDumpItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const replyRef = useRef<HTMLInputElement>(null);
+
+  const fetchThread = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/brain-dumps/${brainDumpId}/thread`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setThread(json.data || []);
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }, [brainDumpId]);
+
+  useEffect(() => {
+    fetchThread();
+  }, [fetchThread]);
+
+  async function handleReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reply.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/brain-dumps/${brainDumpId}/thread`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: reply.trim(), author: "nate" }),
+      });
+      if (!res.ok) throw new Error("Failed to send");
+      setReply("");
+      fetchThread();
+      onReplySent();
+    } catch {
+      // silently fail
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="mt-2 space-y-2 border-t border-zinc-800/50 pt-2">
+        <div className="h-10 animate-pulse rounded-lg bg-zinc-900/50" />
+      </div>
+    );
+  }
+
+  // Thread has only the root message — no conversation yet
+  const hasReplies = thread.length > 1;
+
+  return (
+    <div className="mt-2 space-y-2 border-t border-zinc-800/50 pt-2">
+      {/* Show replies (skip the root, which is already visible above) */}
+      {hasReplies &&
+        thread.slice(1).map((msg) => {
+          const author = (msg.metadata?.author as string) || "nate";
+          const isPebble = author === "pebble";
+          return (
+            <div
+              key={msg.id}
+              className={`rounded-lg px-3 py-2 text-xs ${
+                isPebble
+                  ? "bg-indigo-950/30 border border-indigo-800/30 text-indigo-200"
+                  : "bg-zinc-800/30 border border-zinc-700/30 text-zinc-300"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] font-medium">
+                  {isPebble ? "🤖 Pebble" : "👤 Nate"}
+                </span>
+                <span className="text-[10px] text-zinc-600">
+                  {timeAgo(msg.created_at)}
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap">{msg.content}</p>
+            </div>
+          );
+        })}
+
+      {/* Reply input */}
+      <form onSubmit={handleReply} className="flex gap-2">
+        <input
+          ref={replyRef}
+          type="text"
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          placeholder="Reply..."
+          className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
+        />
+        <button
+          type="submit"
+          disabled={!reply.trim() || sending}
+          className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {sending ? "..." : "Reply"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export function BrainDump({
   onSaved,
   refreshKey,
@@ -37,6 +150,7 @@ export function BrainDump({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [recentDumps, setRecentDumps] = useState<BrainDumpItem[]>([]);
   const [loadingDumps, setLoadingDumps] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchRecentDumps = useCallback(async () => {
     try {
@@ -141,37 +255,60 @@ export function BrainDump({
               ))}
             </div>
           ) : (
-            recentDumps.map((dump) => (
-              <div
-                key={dump.id}
-                className="flex items-center gap-2 rounded-lg border border-zinc-800/50 bg-zinc-900/30 px-3 py-2 transition-colors duration-200"
-              >
-                {dump.status === "processed" ? (
-                  <span
-                    className="shrink-0 text-xs text-emerald-400"
-                    title="Processed"
+            recentDumps.map((dump) => {
+              const isExpanded = expandedId === dump.id;
+              return (
+                <div
+                  key={dump.id}
+                  className="rounded-lg border border-zinc-800/50 bg-zinc-900/30 px-3 py-2 transition-colors duration-200"
+                >
+                  <button
+                    onClick={() =>
+                      setExpandedId(isExpanded ? null : dump.id)
+                    }
+                    className="flex w-full items-center gap-2 text-left"
                   >
-                    ✓
-                  </span>
-                ) : (
-                  <span
-                    className="relative flex h-1.5 w-1.5 shrink-0"
-                    title="Pending"
-                  >
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  </span>
-                )}
-                <span className="flex-1 truncate text-xs text-zinc-400">
-                  {dump.content.length > 80
-                    ? dump.content.slice(0, 80) + "..."
-                    : dump.content}
-                </span>
-                <span className="shrink-0 text-[10px] text-zinc-600">
-                  {timeAgo(dump.created_at)}
-                </span>
-              </div>
-            ))
+                    {dump.status === "processed" ? (
+                      <span
+                        className="shrink-0 text-xs text-emerald-400"
+                        title="Processed"
+                      >
+                        ✓
+                      </span>
+                    ) : (
+                      <span
+                        className="relative flex h-1.5 w-1.5 shrink-0"
+                        title="Pending"
+                      >
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+                      </span>
+                    )}
+                    <span className="flex-1 truncate text-xs text-zinc-400">
+                      {dump.content.length > 80
+                        ? dump.content.slice(0, 80) + "..."
+                        : dump.content}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-zinc-600">
+                      {timeAgo(dump.created_at)}
+                    </span>
+                    <span className="shrink-0 text-zinc-600 text-xs">
+                      {isExpanded ? "−" : "+"}
+                    </span>
+                  </button>
+
+                  {isExpanded && (
+                    <ThreadView
+                      brainDumpId={dump.id}
+                      onReplySent={() => {
+                        fetchRecentDumps();
+                        onSaved?.();
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       )}
