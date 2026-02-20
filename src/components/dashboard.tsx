@@ -25,7 +25,7 @@ export function Dashboard() {
               <h2 className="text-sm font-medium text-zinc-400">Brain Dump</h2>
               <div className="h-px flex-1 bg-zinc-800/50" />
             </div>
-            <BrainDump onSaved={handleDataChanged} />
+            <BrainDump onSaved={handleDataChanged} refreshKey={refreshKey} />
           </section>
 
           {/* Bulletins */}
@@ -36,7 +36,7 @@ export function Dashboard() {
               </h2>
               <div className="h-px flex-1 bg-zinc-800/50" />
             </div>
-            <Bulletins refreshKey={refreshKey} />
+            <Bulletins refreshKey={refreshKey} onReply={handleDataChanged} />
           </section>
 
           {/* Activity Feed */}
@@ -59,7 +59,7 @@ export function Dashboard() {
               <h2 className="text-sm font-medium text-zinc-400">Task Queue</h2>
               <div className="h-px flex-1 bg-zinc-800/50" />
             </div>
-            <TaskQueue refreshKey={refreshKey} />
+            <TaskQueue refreshKey={refreshKey} onTaskCreated={handleDataChanged} />
           </section>
 
           {/* Quick Stats */}
