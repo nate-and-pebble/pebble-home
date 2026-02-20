@@ -20,7 +20,9 @@ export function withAuth<T extends any[]>(
       const referer = req.headers.get("referer");
       const origin = req.headers.get("origin");
       const host = req.headers.get("host");
+      const secFetchSite = req.headers.get("sec-fetch-site");
       const isSameOrigin =
+        secFetchSite === "same-origin" ||
         (referer && host && new URL(referer).host === host) ||
         (origin && host && new URL(origin).host === host);
 
