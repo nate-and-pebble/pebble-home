@@ -126,8 +126,11 @@ export function StatusIndicator() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-    fetchStatus();
+    const t = setTimeout(() => {
+      setMounted(true);
+      fetchStatus();
+    }, 0);
+    return () => clearTimeout(t);
   }, [fetchStatus]);
 
   useEffect(() => {
@@ -143,13 +146,18 @@ export function StatusIndicator() {
     const state = getAgentState(data);
     const newSubtitle = getSubtitle(data, state);
     if (newSubtitle !== prevSubtitle) {
-      setTransitioning(true);
+      const timer0 = setTimeout(() => {
+        setTransitioning(true);
+      }, 0);
       const timer = setTimeout(() => {
         setSubtitle(newSubtitle);
         setPrevSubtitle(newSubtitle);
         setTransitioning(false);
       }, 200);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer0);
+        clearTimeout(timer);
+      };
     }
   }, [data, prevSubtitle]);
 

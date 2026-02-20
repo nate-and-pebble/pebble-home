@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // CLI is plain Node (not TS). Linting it under the Next/TS rules creates noise.
+    "tools/pebble.js",
   ]),
 ]);
 

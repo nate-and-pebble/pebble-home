@@ -19,7 +19,12 @@ function SchemaBanner() {
     }
   }, []);
 
-  useEffect(() => { check(); }, [check]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      check();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [check]);
 
   if (missing.length === 0) return null;
 
@@ -39,6 +44,7 @@ function SchemaBanner() {
 
 const links = [
   { href: "/", label: "Home" },
+  { href: "/goals", label: "Goals" },
   { href: "/runs", label: "Agent Runs" },
 ];
 

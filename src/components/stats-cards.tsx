@@ -43,7 +43,10 @@ export function StatsCards({ refreshKey }: { refreshKey?: number }) {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    const t = setTimeout(() => {
+      fetchStats();
+    }, 0);
+    return () => clearTimeout(t);
   }, [fetchStats, refreshKey]);
 
   const cards = [
