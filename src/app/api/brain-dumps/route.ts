@@ -39,10 +39,12 @@ export const GET = withAuth(async (req: NextRequest) => {
   const status = url.searchParams.get("status");
   const offset = (page - 1) * limit;
 
+  // Exclude processed thread replies from the main list, but keep
+  // new/unprocessed replies visible so agents pick them up
   let query = getSupabase()
     .from("brain_dumps")
     .select("*", { count: "exact" })
-    .is("metadata->>thread_id", null)
+    .or("metadata->>thread_id.is.null,status.eq.new")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
