@@ -54,7 +54,7 @@ export const GET = withAuth(async () => {
     return count || 0;
   };
 
-  const [brainDumps, totalTasks, tasksDone, totalBulletins, unreadBulletins, activeAgentRuns] =
+  const [brainDumps, totalTasks, tasksDone, totalBulletins, unreadBulletins, activeAgentRuns, lastRunResult] =
     await Promise.all([
       safeCount("brain_dumps"),
       safeCount("tasks"),
@@ -62,7 +62,29 @@ export const GET = withAuth(async () => {
       safeCount("bulletins"),
       safeCount("bulletins", { col: "status", val: "new" }),
       safeCount("agent_runs", { col: "status", val: "running" }),
+      missingTables.has("agent_runs")
+        ? Promise.resolve({ data: null })
+        : getSupabase()
+            .from("agent_runs")
+            .select("started_at, completed_at, agent_id, status, summary")
+            .order("started_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
     ]);
+
+  const lastRun = lastRunResult?.data || null;
+
+  // Fetch latest journal entry for live activity display
+  let latestJournal = null;
+  if (!missingTables.has("run_log")) {
+    const { data: journalData } = await getSupabase()
+      .from("run_log")
+      .select("content, entry_type, agent_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    latestJournal = journalData || null;
+  }
 
   const uptimeMs = Date.now() - startTime;
   const uptimeHours = Math.floor(uptimeMs / 3600000);
@@ -82,6 +104,16 @@ export const GET = withAuth(async () => {
       unreadBulletins,
       activeAgentRuns,
     },
+    lastRun: lastRun
+      ? {
+          agent_id: lastRun.agent_id,
+          status: lastRun.status,
+          started_at: lastRun.started_at,
+          completed_at: lastRun.completed_at,
+          summary: lastRun.summary,
+        }
+      : null,
+    latestJournal,
     timestamp: new Date().toISOString(),
   });
 });

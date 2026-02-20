@@ -6,6 +6,7 @@ import { ActivityFeed } from "@/components/activity-feed";
 import { TaskQueue } from "@/components/task-queue";
 import { Bulletins } from "@/components/bulletins";
 import { StatsCards } from "@/components/stats-cards";
+import { PendingHandoffs } from "@/components/pending-handoffs";
 
 export function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -60,6 +61,17 @@ export function Dashboard() {
               <div className="h-px flex-1 bg-zinc-800/50" />
             </div>
             <TaskQueue refreshKey={refreshKey} onTaskCreated={handleDataChanged} />
+          </section>
+
+          {/* Pending Handoffs */}
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-medium text-zinc-400">
+                Handoffs
+              </h2>
+              <div className="h-px flex-1 bg-zinc-800/50" />
+            </div>
+            <PendingHandoffs refreshKey={refreshKey} />
           </section>
 
           {/* Quick Stats */}

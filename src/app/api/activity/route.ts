@@ -10,9 +10,18 @@ interface ActivityItem {
   time: string;
   status: string;
   created_at: string;
+  detail: {
+    fullContent?: string;
+    metadata?: Record<string, unknown>;
+    summary?: string;
+    agent_id?: string;
+    priority?: string;
+    description?: string;
+    logCount?: number;
+  };
 }
 
-// GET /api/activity - combined feed (brain dumps + tasks + bulletins, newest first)
+// GET /api/activity - combined feed with expandable details
 export const GET = withAuth(async (req: NextRequest) => {
   const url = req.nextUrl;
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
@@ -35,7 +44,7 @@ export const GET = withAuth(async (req: NextRequest) => {
       .limit(limit),
     getSupabase()
       .from("agent_runs")
-      .select("*")
+      .select("*, run_log(id)")
       .order("started_at", { ascending: false })
       .limit(limit),
   ]);
@@ -65,6 +74,17 @@ export const GET = withAuth(async (req: NextRequest) => {
     );
   }
 
+  // Build a set of brain dump IDs that are linked to tasks (via metadata.source_brain_dump)
+  const tasksByBrainDump = new Map<string, string[]>();
+  for (const t of tasks.data || []) {
+    const source = t.metadata?.source_brain_dump;
+    if (source) {
+      const existing = tasksByBrainDump.get(source) || [];
+      existing.push(t.title);
+      tasksByBrainDump.set(source, existing);
+    }
+  }
+
   const activity: ActivityItem[] = [];
 
   for (const bd of brainDumps.data || []) {
@@ -72,27 +92,41 @@ export const GET = withAuth(async (req: NextRequest) => {
       bd.content.length > 60
         ? bd.content.slice(0, 60) + "..."
         : bd.content;
+    const linkedTasks = tasksByBrainDump.get(bd.id);
     activity.push({
       id: bd.id,
       type: "brain_dump",
-      icon: "🧠",
-      text: `Brain dump: ${preview}`,
+      icon: bd.status === "processed" ? "✅" : "🧠",
+      text: preview,
       time: bd.created_at,
       status: bd.status,
       created_at: bd.created_at,
+      detail: {
+        fullContent: bd.content,
+        metadata: {
+          ...bd.metadata,
+          ...(linkedTasks ? { spawned_tasks: linkedTasks } : {}),
+        },
+      },
     });
   }
 
   for (const t of tasks.data || []) {
-    const icon = t.status === "done" ? "✅" : t.status === "in_progress" ? "🔄" : "📋";
+    const icon =
+      t.status === "done" ? "✅" : t.status === "in_progress" ? "🔄" : "📋";
     activity.push({
       id: t.id,
       type: "task",
       icon,
-      text: `Task: ${t.title}`,
+      text: t.title,
       time: t.created_at,
       status: t.status,
       created_at: t.created_at,
+      detail: {
+        description: t.description || undefined,
+        priority: t.priority,
+        metadata: t.metadata,
+      },
     });
   }
 
@@ -101,24 +135,41 @@ export const GET = withAuth(async (req: NextRequest) => {
       id: b.id,
       type: "bulletin",
       icon: b.status === "new" ? "📢" : "📋",
-      text: `Bulletin: ${b.title}`,
+      text: b.title,
       time: b.created_at,
       status: b.status,
       created_at: b.created_at,
+      detail: {
+        fullContent: b.content || undefined,
+        metadata: b.metadata,
+      },
     });
   }
 
   for (const r of agentRuns.data || []) {
-    const icon = r.status === "running" ? "🤖" : r.status === "completed" ? "✅" : "⚠️";
-    const summary = r.summary ? `: ${r.summary}` : "";
+    const icon =
+      r.status === "running"
+        ? "🤖"
+        : r.status === "completed"
+          ? "✅"
+          : r.status === "failed"
+            ? "❌"
+            : "⚠️";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const logCount = Array.isArray((r as any).run_log) ? (r as any).run_log.length : 0;
     activity.push({
       id: r.id,
       type: "agent_run",
       icon,
-      text: `Agent run (${r.agent_id})${summary}`,
+      text: r.summary || `Agent run (${r.agent_id})`,
       time: r.started_at,
       status: r.status,
       created_at: r.started_at,
+      detail: {
+        agent_id: r.agent_id,
+        summary: r.summary || undefined,
+        logCount,
+      },
     });
   }
 
