@@ -30,9 +30,11 @@ PEBBLE_API_KEY=optional-api-key-for-cli
 3. Run Supabase migrations:
 
 ```bash
-# Run both migration files against your Supabase database
+# Run all migration files against your Supabase database (via dashboard SQL editor)
 supabase/migrations/001_create_brain_dumps.sql
 supabase/migrations/002_add_tasks_and_metadata.sql
+supabase/migrations/003_add_bulletins.sql
+supabase/migrations/004_add_agent_coordination.sql
 ```
 
 4. Start the dev server:
@@ -99,6 +101,74 @@ Create `~/.pebble.json`:
 ./tools/pebble.js status
 ```
 
+## Agent Coordination Protocol
+
+AI HQ includes a coordination layer that lets multiple agents and heartbeat-driven runs work together without conflicts.
+
+### How It Works
+
+1. **Runs** — each agent session registers a "run" with a time-limited lease (default 10 min). The run tracks who's active and auto-expires if the agent dies.
+
+2. **Task claims** — agents claim tasks with optimistic locking. A claim is a lease: if it expires, the task becomes available for another agent. Two agents can't claim the same task (409 conflict).
+
+3. **Journal (run_log)** — structured log entries that persist across runs. Every agent logs what it did, decided, or handed off. The next heartbeat reads the journal to pick up context without relying on local memory files.
+
+### Lifecycle
+
+```
+Start run → Check context → Claim task → Log progress → Release task → Complete run
+    ↓              ↓              ↓              ↓              ↓              ↓
+  pebble        pebble        pebble        pebble        pebble        pebble
+  run start     context       claim         log           release       run complete
+```
+
+### Failure Modes
+
+- **Agent crash**: lease expires → next heartbeat auto-releases claims
+- **Concurrent claim**: second agent gets 409 → picks different task
+- **Slow work**: extend lease via `pebble run heartbeat <run-id>`
+- **Forgotten cleanup**: stale runs expire on next `pebble run start`
+
+### Agent Coordination API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/agent/runs` | Start a run `{ agent_id, lease_duration_minutes? }` |
+| `GET` | `/api/agent/runs` | List runs `?agent_id=&status=&limit=` |
+| `GET` | `/api/agent/runs/:id` | Get run with its log |
+| `PATCH` | `/api/agent/runs/:id` | Update run `{ status?, summary?, heartbeat? }` |
+| `POST` | `/api/agent/runs/:id/log` | Add journal entry `{ entry_type, content }` |
+| `GET` | `/api/agent/runs/:id/log` | Get log entries for a run |
+| `GET` | `/api/agent/journal` | Recent journal across all runs |
+| `GET` | `/api/agent/context` | Full coordination context |
+| `POST` | `/api/tasks/:id/claim` | Claim task `{ run_id, agent_id }` |
+| `DELETE` | `/api/tasks/:id/claim` | Release claim `{ reason?, run_id? }` |
+
+### Agent Coordination CLI
+
+```bash
+# Start a run (auto-cleans expired runs)
+pebble run start openclaw
+
+# See what's going on
+pebble context
+
+# Claim a task
+pebble claim <task-id> --run <run-id> --agent openclaw
+
+# Log progress
+pebble log <run-id> "Deployed new feature" --type action
+
+# Release a task
+pebble release <task-id> --run <run-id> --reason completed
+
+# Complete the run
+pebble run complete <run-id> --summary "Processed brain dumps, deployed feature"
+
+# Read the journal
+pebble journal
+```
+
 ## Project Structure
 
 ```
@@ -106,8 +176,12 @@ src/
   app/
     api/
       brain-dumps/       # Brain dump CRUD endpoints
-      tasks/             # Task CRUD endpoints
+      tasks/             # Task CRUD endpoints (+ claim/release)
       bulletins/         # Bulletin CRUD endpoints
+      agent/             # Agent coordination endpoints
+        runs/            # Run lifecycle (start, heartbeat, complete)
+        journal/         # Cross-run journal entries
+        context/         # Full coordination context
       activity/          # Combined activity feed
       status/            # Health/stats endpoint
     layout.tsx           # Root layout (dark theme, fonts)
@@ -118,16 +192,17 @@ src/
     brain-dump.tsx       # Brain dump form
     bulletins.tsx        # Bulletin list with expand/read
     activity-feed.tsx    # Live activity feed
-    task-queue.tsx       # Task list with status badges
+    task-queue.tsx       # Task list with status badges + claim info
+    agent-runs.tsx       # Agent run list with expandable logs
     stats-cards.tsx      # Stats overview cards
     status-indicator.tsx # Online status indicator
   lib/
     supabase.ts          # Supabase client
     api-auth.ts          # API key auth middleware
 supabase/
-  migrations/            # SQL migrations
+  migrations/            # SQL migrations (001-004)
 tools/
-  pebble.js              # CLI tool
+  pebble.js              # CLI tool (+ agent coordination commands)
 ```
 
 ## Database Schema
@@ -163,3 +238,35 @@ tools/
 | created_at | timestamptz | now() |
 | read_at | timestamptz | null |
 | metadata | jsonb | {} |
+
+### agent_runs
+| Column | Type | Default |
+|--------|------|---------|
+| id | uuid | gen_random_uuid() |
+| agent_id | text | required |
+| status | text | 'running' |
+| started_at | timestamptz | now() |
+| heartbeat_at | timestamptz | now() |
+| completed_at | timestamptz | null |
+| lease_expires_at | timestamptz | required |
+| summary | text | null |
+| metadata | jsonb | {} |
+
+### run_log
+| Column | Type | Default |
+|--------|------|---------|
+| id | uuid | gen_random_uuid() |
+| run_id | uuid | FK → agent_runs |
+| agent_id | text | required |
+| entry_type | text | 'action' |
+| content | text | required |
+| related_task_id | uuid | FK → tasks (nullable) |
+| metadata | jsonb | {} |
+| created_at | timestamptz | now() |
+
+### tasks (added columns)
+| Column | Type | Default |
+|--------|------|---------|
+| assigned_agent | text | null |
+| claim_run_id | uuid | FK → agent_runs (nullable) |
+| claim_expires_at | timestamptz | null |

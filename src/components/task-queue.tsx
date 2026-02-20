@@ -8,6 +8,8 @@ interface Task {
   status: string;
   priority: string;
   created_at: string;
+  assigned_agent: string | null;
+  claim_expires_at: string | null;
 }
 
 const priorityColors: Record<string, string> = {
@@ -82,6 +84,11 @@ export function TaskQueue({ refreshKey }: { refreshKey?: number }) {
             />
             <span className="flex-1 text-sm text-zinc-300 truncate">
               {task.title}
+              {task.assigned_agent && (
+                <span className="ml-1.5 text-[10px] text-indigo-400/70">
+                  {task.assigned_agent}
+                </span>
+              )}
             </span>
             <span
               className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.className}`}

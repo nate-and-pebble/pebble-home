@@ -4,7 +4,7 @@ import { withAuth } from "@/lib/api-auth";
 
 interface ActivityItem {
   id: string;
-  type: "brain_dump" | "task" | "bulletin";
+  type: "brain_dump" | "task" | "bulletin" | "agent_run";
   icon: string;
   text: string;
   time: string;
@@ -17,7 +17,7 @@ export const GET = withAuth(async (req: NextRequest) => {
   const url = req.nextUrl;
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
 
-  const [brainDumps, tasks, bulletins] = await Promise.all([
+  const [brainDumps, tasks, bulletins, agentRuns] = await Promise.all([
     getSupabase()
       .from("brain_dumps")
       .select("*")
@@ -32,6 +32,11 @@ export const GET = withAuth(async (req: NextRequest) => {
       .from("bulletins")
       .select("*")
       .order("created_at", { ascending: false })
+      .limit(limit),
+    getSupabase()
+      .from("agent_runs")
+      .select("*")
+      .order("started_at", { ascending: false })
       .limit(limit),
   ]);
 
@@ -50,6 +55,12 @@ export const GET = withAuth(async (req: NextRequest) => {
   if (bulletins.error) {
     return NextResponse.json(
       { error: bulletins.error.message },
+      { status: 500 }
+    );
+  }
+  if (agentRuns.error) {
+    return NextResponse.json(
+      { error: agentRuns.error.message },
       { status: 500 }
     );
   }
@@ -94,6 +105,20 @@ export const GET = withAuth(async (req: NextRequest) => {
       time: b.created_at,
       status: b.status,
       created_at: b.created_at,
+    });
+  }
+
+  for (const r of agentRuns.data || []) {
+    const icon = r.status === "running" ? "🤖" : r.status === "completed" ? "✅" : "⚠️";
+    const summary = r.summary ? `: ${r.summary}` : "";
+    activity.push({
+      id: r.id,
+      type: "agent_run",
+      icon,
+      text: `Agent run (${r.agent_id})${summary}`,
+      time: r.started_at,
+      status: r.status,
+      created_at: r.started_at,
     });
   }
 

@@ -7,6 +7,7 @@ import { TaskQueue } from "@/components/task-queue";
 import { Bulletins } from "@/components/bulletins";
 import { StatsCards } from "@/components/stats-cards";
 import { StatusIndicator } from "@/components/status-indicator";
+import { AgentRuns } from "@/components/agent-runs";
 
 export function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -77,6 +78,15 @@ export function Dashboard() {
               <div className="h-px flex-1 bg-zinc-800/50" />
             </div>
             <TaskQueue refreshKey={refreshKey} />
+          </section>
+
+          {/* Agent Runs */}
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-medium text-zinc-400">Agent Runs</h2>
+              <div className="h-px flex-1 bg-zinc-800/50" />
+            </div>
+            <AgentRuns refreshKey={refreshKey} />
           </section>
 
           {/* Quick Stats */}

@@ -6,7 +6,7 @@ const startTime = Date.now();
 
 // GET /api/status - health/stats
 export const GET = withAuth(async () => {
-  const [brainDumps, totalTasks, doneTasks, totalBulletins, unreadBulletins] = await Promise.all([
+  const [brainDumps, totalTasks, doneTasks, totalBulletins, unreadBulletins, activeRuns] = await Promise.all([
     getSupabase()
       .from("brain_dumps")
       .select("*", { count: "exact", head: true }),
@@ -24,6 +24,10 @@ export const GET = withAuth(async () => {
       .from("bulletins")
       .select("*", { count: "exact", head: true })
       .eq("status", "new"),
+    getSupabase()
+      .from("agent_runs")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "running"),
   ]);
 
   const uptimeMs = Date.now() - startTime;
@@ -40,6 +44,7 @@ export const GET = withAuth(async () => {
       tasksDone: doneTasks.count || 0,
       totalBulletins: totalBulletins.count || 0,
       unreadBulletins: unreadBulletins.count || 0,
+      activeAgentRuns: activeRuns.count || 0,
     },
     timestamp: new Date().toISOString(),
   });
