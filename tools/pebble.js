@@ -635,6 +635,30 @@ async function cmdLog(args) {
   console.log(`${GREEN}Logged!${RESET} [${result.entry_type}] ${result.content}`);
 }
 
+async function cmdWipe(args) {
+  const includeBulletins = args.includes("--include-bulletins");
+
+  // Confirm unless --yes is passed
+  if (!args.includes("--yes")) {
+    const scope = includeBulletins
+      ? "ALL data (run_log, agent_runs, tasks, brain_dumps, bulletins)"
+      : "run_log, agent_runs, tasks, brain_dumps (bulletins preserved)";
+    console.log(`\n  ${RED}${BOLD}WARNING:${RESET} This will permanently delete:\n  ${scope}\n`);
+    console.log(`  Pass ${BOLD}--yes${RESET} to confirm.\n`);
+    process.exit(1);
+  }
+
+  const body = {};
+  if (includeBulletins) body.include_bulletins = true;
+
+  const result = await api("POST", "/api/admin/wipe", body);
+  console.log(`\n  ${GREEN}${BOLD}Wiped!${RESET}\n`);
+  for (const [table, count] of Object.entries(result.deleted)) {
+    console.log(`  ${table}: ${BOLD}${count}${RESET} rows deleted`);
+  }
+  console.log();
+}
+
 async function cmdStatus() {
   const json = await api("GET", "/api/status");
 
@@ -692,6 +716,10 @@ ${BOLD}Commands:${RESET}
 
   status                    Show system status
 
+  ${BOLD}Admin:${RESET}
+  wipe                      Wipe all data except bulletins (--yes to confirm)
+  wipe --include-bulletins   Wipe everything including bulletins (--yes to confirm)
+
 ${BOLD}Config:${RESET}
   Create ~/.pebble.json:
   { "apiUrl": "http://localhost:3000", "apiKey": "your-key" }
@@ -745,6 +773,9 @@ async function main() {
       break;
     case "status":
       await cmdStatus();
+      break;
+    case "wipe":
+      await cmdWipe(args.slice(1));
       break;
     default:
       console.error(`Unknown command: ${command}`);

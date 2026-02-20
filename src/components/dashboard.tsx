@@ -6,8 +6,6 @@ import { ActivityFeed } from "@/components/activity-feed";
 import { TaskQueue } from "@/components/task-queue";
 import { Bulletins } from "@/components/bulletins";
 import { StatsCards } from "@/components/stats-cards";
-import { StatusIndicator } from "@/components/status-indicator";
-import { AgentRuns } from "@/components/agent-runs";
 
 export function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -18,23 +16,7 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-zinc-800/50 pb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl" role="img" aria-label="rock">
-            🪨
-          </span>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-100">
-              AI HQ
-            </h1>
-            <p className="text-xs text-zinc-500">Pebble &times; Nate</p>
-          </div>
-        </div>
-        <StatusIndicator />
-      </header>
-
-      <div className="mt-8 grid gap-8 lg:grid-cols-5">
+      <div className="grid gap-8 lg:grid-cols-5">
         {/* Main column */}
         <div className="space-y-8 lg:col-span-3">
           {/* Brain Dump */}
@@ -80,15 +62,6 @@ export function Dashboard() {
             <TaskQueue refreshKey={refreshKey} />
           </section>
 
-          {/* Agent Runs */}
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <h2 className="text-sm font-medium text-zinc-400">Agent Runs</h2>
-              <div className="h-px flex-1 bg-zinc-800/50" />
-            </div>
-            <AgentRuns refreshKey={refreshKey} />
-          </section>
-
           {/* Quick Stats */}
           <section>
             <div className="mb-3 flex items-center gap-2">
@@ -99,13 +72,6 @@ export function Dashboard() {
           </section>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="mt-16 border-t border-zinc-800/50 pt-6 text-center">
-        <p className="text-xs text-zinc-700">
-          AI HQ &middot; Built by Pebble 🪨 &amp; Nate
-        </p>
-      </footer>
     </div>
   );
 }

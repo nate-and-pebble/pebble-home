@@ -27,21 +27,35 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 PEBBLE_API_KEY=optional-api-key-for-cli
 ```
 
-3. Run Supabase migrations:
-
-```bash
-# Run all migration files against your Supabase database (via dashboard SQL editor)
-supabase/migrations/001_create_brain_dumps.sql
-supabase/migrations/002_add_tasks_and_metadata.sql
-supabase/migrations/003_add_bulletins.sql
-supabase/migrations/004_add_agent_coordination.sql
-```
+3. Run Supabase migrations (see [DB Migrations](#db-migrations-required) below).
 
 4. Start the dev server:
 
 ```bash
 pnpm dev
 ```
+
+## DB Migrations (Required)
+
+All migrations live in `supabase/migrations/` and must be run **manually** in the Supabase SQL Editor (no CLI access to prod).
+
+**How to apply:**
+
+1. Open your Supabase project dashboard → **SQL Editor**.
+2. Run each migration file **in order**. Copy-paste the full file contents and execute:
+
+| File | Creates |
+|------|---------|
+| `001_create_brain_dumps.sql` | `brain_dumps` table + RLS |
+| `002_add_tasks_and_metadata.sql` | `tasks` table, `metadata` column on brain_dumps |
+| `003_add_bulletins.sql` | `bulletins` table + RLS |
+| `004_add_agent_coordination.sql` | `agent_runs`, `run_log` tables + task claim columns + indexes + RLS |
+
+All statements use `IF NOT EXISTS` / `IF NOT EXISTS`, so re-running is safe.
+
+**How to verify:** Hit `GET /api/status` — if `schema_ok` is `true`, all tables and columns are present. If `false`, the `missing` array tells you exactly what's missing.
+
+The dashboard also shows an amber banner when migrations are pending.
 
 ## API Endpoints
 
@@ -60,6 +74,7 @@ All endpoints accept an optional `X-API-Key` header (required when `PEBBLE_API_K
 | `PATCH` | `/api/bulletins/:id` | Update bulletin `{ title?, content?, status? }` |
 | `GET` | `/api/activity` | Combined feed `?limit=` |
 | `GET` | `/api/status` | Health + stats (counts, uptime) |
+| `POST` | `/api/admin/wipe` | Wipe all data `{ include_bulletins? }` (requires `PEBBLE_API_KEY`) |
 
 ## CLI Tool
 
@@ -99,6 +114,10 @@ Create `~/.pebble.json`:
 
 # Status
 ./tools/pebble.js status
+
+# Wipe data (requires PEBBLE_API_KEY)
+./tools/pebble.js wipe --yes                    # wipe all except bulletins
+./tools/pebble.js wipe --include-bulletins --yes # wipe everything
 ```
 
 ## Agent Coordination Protocol
@@ -182,9 +201,13 @@ src/
         runs/            # Run lifecycle (start, heartbeat, complete)
         journal/         # Cross-run journal entries
         context/         # Full coordination context
+      admin/
+        wipe/            # Secure data wipe endpoint
       activity/          # Combined activity feed
       status/            # Health/stats endpoint
-    layout.tsx           # Root layout (dark theme, fonts)
+    runs/
+      page.tsx           # Agent Runs page
+    layout.tsx           # Root layout (dark theme, fonts + nav)
     page.tsx             # Main dashboard
     globals.css          # Global styles + Tailwind
   components/
@@ -195,6 +218,7 @@ src/
     task-queue.tsx       # Task list with status badges + claim info
     agent-runs.tsx       # Agent run list with expandable logs
     stats-cards.tsx      # Stats overview cards
+    nav.tsx              # Top navigation bar
     status-indicator.tsx # Online status indicator
   lib/
     supabase.ts          # Supabase client
