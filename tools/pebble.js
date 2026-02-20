@@ -595,9 +595,25 @@ async function cmdContext() {
     console.log(`\n  ${DIM}No available tasks.${RESET}`);
   }
 
-  if (json.recent_journal.length > 0) {
+  // Surface pending handoffs prominently
+  const handoffs = json.recent_journal.filter(
+    (e) => e.entry_type === "handoff"
+  );
+  if (handoffs.length > 0) {
+    console.log(`\n  ${YELLOW}${BOLD}Pending Handoffs:${RESET}`);
+    for (const h of handoffs.slice(0, 5)) {
+      console.log(
+        `    ${YELLOW}~${RESET}  ${CYAN}${h.agent_id}${RESET}  ${h.content}  ${DIM}${timeAgo(h.created_at)}${RESET}`
+      );
+    }
+  }
+
+  const nonHandoffs = json.recent_journal.filter(
+    (e) => e.entry_type !== "handoff"
+  );
+  if (nonHandoffs.length > 0) {
     console.log(`\n  ${BOLD}Recent Journal:${RESET}`);
-    for (const e of json.recent_journal.slice(0, 10)) {
+    for (const e of nonHandoffs.slice(0, 10)) {
       console.log(
         `    ${DIM}${timeAgo(e.created_at)}${RESET}  ${CYAN}${e.agent_id}${RESET}  [${e.entry_type}]  ${e.content}`
       );
@@ -605,6 +621,47 @@ async function cmdContext() {
   }
 
   console.log();
+}
+
+async function cmdHandoff(args) {
+  const runId = args[0];
+  if (!runId) {
+    console.error(
+      'Usage: pebble handoff <run-id> --task <task-id> --state "where I stopped" --next "what to do next"'
+    );
+    process.exit(1);
+  }
+
+  const taskId = args.includes("--task")
+    ? args[args.indexOf("--task") + 1]
+    : null;
+  const state = args.includes("--state")
+    ? args[args.indexOf("--state") + 1]
+    : null;
+  const next = args.includes("--next")
+    ? args[args.indexOf("--next") + 1]
+    : null;
+
+  if (!next) {
+    console.error("--next is required (what should the next agent do?)");
+    process.exit(1);
+  }
+
+  const parts = [];
+  if (taskId) parts.push(`task=${taskId}`);
+  if (state) parts.push(`state: ${state}`);
+  parts.push(`next: ${next}`);
+  const content = parts.join(" | ");
+
+  const body = {
+    entry_type: "handoff",
+    content,
+    metadata: { task_id: taskId, state, next },
+  };
+  if (taskId) body.related_task_id = taskId;
+
+  const result = await api("POST", `/api/agent/runs/${runId}/log`, body);
+  console.log(`${GREEN}Handoff logged!${RESET} ${result.content}`);
 }
 
 async function cmdLog(args) {
@@ -709,6 +766,7 @@ ${BOLD}Commands:${RESET}
     log <run-id>            Show log entries for a run
 
   log <run-id> <content>    Add a journal entry (--type action|decision|handoff|error|note)
+  handoff <run-id>          Structured handoff (--task <id> --state "..." --next "...")
   journal                   View recent journal entries (--limit N, --agent <id>)
   context                   View full coordination context
   claim <task-id>           Claim a task (--run <run-id> --agent <agent-id>)
@@ -764,6 +822,9 @@ async function main() {
       break;
     case "context":
       await cmdContext();
+      break;
+    case "handoff":
+      await cmdHandoff(args.slice(1));
       break;
     case "claim":
       await cmdClaim(args.slice(1));
