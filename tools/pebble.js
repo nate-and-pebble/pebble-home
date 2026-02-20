@@ -309,6 +309,121 @@ async function cmdTask(args) {
   process.exit(1);
 }
 
+async function cmdGoals(args) {
+  const statusFilter = args.includes("--status")
+    ? args[args.indexOf("--status") + 1]
+    : null;
+
+  let endpoint = "/api/goals?";
+  if (statusFilter) endpoint += `status=${statusFilter}&`;
+
+  const json = await api("GET", endpoint);
+
+  if (!json.data || json.data.length === 0) {
+    console.log(`${DIM}No goals yet.${RESET}`);
+    return;
+  }
+
+  console.log(`${BOLD}Goals${RESET} (${json.pagination.total} total)\n`);
+  for (const g of json.data) {
+    const pc = priorityColor(g.priority);
+    console.log(
+      `  ${CYAN}${g.id.slice(0, 8)}${RESET}  ${pc}[${g.priority}]${RESET}  ${g.title}  ${DIM}[${g.status}]${RESET}  ${DIM}${timeAgo(g.created_at)}${RESET}`
+    );
+  }
+}
+
+async function cmdGoal(args) {
+  if (args.length === 0) {
+    console.error(
+      "Usage:\n  pebble goal add <title> [--priority ...] [--description ...] [--tag foo --tag bar] [--next-action \"...\"]\n  pebble goal update <id> [--status active|paused|done] [--priority ...] [--title ...] [--description ...] [--next-action \"...\"]\n  pebble goal done <id>"
+    );
+    process.exit(1);
+  }
+
+  if (args[0] === "add") {
+    const flagIdx = args.findIndex((a, i) => i > 0 && a.startsWith("--"));
+    const titleParts = flagIdx > 0 ? args.slice(1, flagIdx) : args.slice(1);
+    const title = titleParts.join(" ");
+
+    if (!title) {
+      console.error("Usage: pebble goal add <title> [--priority high]");
+      process.exit(1);
+    }
+
+    const body = { title };
+    if (args.includes("--priority")) {
+      body.priority = args[args.indexOf("--priority") + 1];
+    }
+    if (args.includes("--description")) {
+      body.description = args[args.indexOf("--description") + 1];
+    }
+
+    const tags = [];
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "--tag" && args[i + 1]) tags.push(args[i + 1]);
+    }
+    if (tags.length) body.tags = tags;
+
+    if (args.includes("--next-action")) {
+      const na = args[args.indexOf("--next-action") + 1];
+      body.metadata = { ...(body.metadata || {}), next_action: na };
+    }
+
+    const result = await api("POST", "/api/goals", body);
+    console.log(
+      `${GREEN}Created!${RESET} ${CYAN}${result.id.slice(0, 8)}${RESET}  ${result.title}`
+    );
+    return;
+  }
+
+  if (args[0] === "update") {
+    const id = args[1];
+    if (!id) {
+      console.error("Usage: pebble goal update <id> --status done");
+      process.exit(1);
+    }
+
+    const body = {};
+    if (args.includes("--status")) body.status = args[args.indexOf("--status") + 1];
+    if (args.includes("--priority")) body.priority = args[args.indexOf("--priority") + 1];
+    if (args.includes("--title")) body.title = args[args.indexOf("--title") + 1];
+    if (args.includes("--description")) body.description = args[args.indexOf("--description") + 1];
+
+    if (args.includes("--next-action")) {
+      const na = args[args.indexOf("--next-action") + 1];
+      body.metadata = { next_action: na };
+    }
+
+    if (Object.keys(body).length === 0) {
+      console.error("Provide at least one field to update (--status, --priority, --title, --description, --next-action)");
+      process.exit(1);
+    }
+
+    const result = await api("PATCH", `/api/goals/${id}`, body);
+    console.log(
+      `${GREEN}Updated!${RESET} ${CYAN}${result.id.slice(0, 8)}${RESET}  ${result.title}  ${DIM}[${result.status}]${RESET}`
+    );
+    return;
+  }
+
+  if (args[0] === "done") {
+    const id = args[1];
+    if (!id) {
+      console.error("Usage: pebble goal done <id>");
+      process.exit(1);
+    }
+    const result = await api("PATCH", `/api/goals/${id}`, { status: "done" });
+    console.log(
+      `${GREEN}Done!${RESET} ${CYAN}${result.id.slice(0, 8)}${RESET}  ${result.title}`
+    );
+    return;
+  }
+
+  console.error(`Unknown goal command: ${args[0]}\nUsage: pebble goal [add|update|done]`);
+  process.exit(1);
+}
+
 async function cmdBulletins(args) {
   const statusFilter = args.includes("--status")
     ? args[args.indexOf("--status") + 1]
@@ -787,6 +902,13 @@ ${BOLD}Commands:${RESET}
 
   tasks                     List tasks (--status, --priority filters)
 
+  goals                     List goals (--status active|paused|done)
+
+  goal [add|update|done]    Manage individual goals
+    add <title>             Create goal (--priority, --description, --tag, --next-action)
+    update <id>             Update goal (--status, --priority, --title, --description, --next-action)
+    done <id>               Mark goal as done
+
   task [add|update|done]    Manage individual tasks
     add <title>             Create task (--priority, --description)
     update <id>             Update task (--status, --priority, --title)
@@ -847,6 +969,12 @@ async function main() {
       break;
     case "task":
       await cmdTask(args.slice(1));
+      break;
+    case "goals":
+      await cmdGoals(args.slice(1));
+      break;
+    case "goal":
+      await cmdGoal(args.slice(1));
       break;
     case "bulletins":
       await cmdBulletins(args.slice(1));
