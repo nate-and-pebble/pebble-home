@@ -153,31 +153,33 @@ export function TaskQueue({
 
   return (
     <div className="space-y-2">
-      <form onSubmit={handleCreateTask} className="flex gap-2">
+      <form onSubmit={handleCreateTask} className="flex flex-wrap gap-2">
         <input
           type="text"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           placeholder="Quick add task..."
-          className="flex-1 min-w-0 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 transition-all duration-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
+          className="flex-1 min-w-[140px] rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 transition-all duration-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
         />
-        <select
-          value={newPriority}
-          onChange={(e) => setNewPriority(e.target.value)}
-          className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1.5 text-xs text-zinc-400 transition-all duration-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
-        >
-          <option value="low">Low</option>
-          <option value="medium">Med</option>
-          <option value="high">High</option>
-          <option value="urgent">Urg</option>
-        </select>
-        <button
-          type="submit"
-          disabled={!newTitle.trim() || creating}
-          className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-all duration-200 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
-        >
-          {creating ? "..." : "+"}
-        </button>
+        <div className="flex gap-2">
+          <select
+            value={newPriority}
+            onChange={(e) => setNewPriority(e.target.value)}
+            className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-2 text-xs text-zinc-400 transition-all duration-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Med</option>
+            <option value="high">High</option>
+            <option value="urgent">Urg</option>
+          </select>
+          <button
+            type="submit"
+            disabled={!newTitle.trim() || creating}
+            className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white transition-all duration-200 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
+          >
+            {creating ? "..." : "+"}
+          </button>
+        </div>
       </form>
 
       {tasks.length === 0 ? (

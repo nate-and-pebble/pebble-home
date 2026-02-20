@@ -54,29 +54,31 @@ export function Nav() {
   return (
     <nav className="border-b border-zinc-800/50">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <span className="text-2xl" role="img" aria-label="rock">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <span className="text-xl sm:text-2xl" role="img" aria-label="rock">
               🪨
             </span>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-zinc-100">
+              <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-zinc-100">
                 AI HQ
               </h1>
-              <p className="text-xs text-zinc-500">Pebble &times; Nate</p>
+              <p className="text-[10px] sm:text-xs text-zinc-500 hidden sm:block">
+                Pebble &times; Nate
+              </p>
             </div>
           </Link>
 
           {/* Nav links */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             {links.map(({ href, label }) => {
               const active = pathname === href;
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                  className={`rounded-md px-2 sm:px-3 py-1.5 text-xs sm:text-sm transition-colors ${
                     active
                       ? "bg-zinc-800 text-zinc-100"
                       : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
