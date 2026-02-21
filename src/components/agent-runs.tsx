@@ -239,9 +239,9 @@ export function AgentRuns({
             </button>
 
             {isExpanded && (
-              <div className="ml-4 mt-1 space-y-1 border-l border-zinc-800/50 pl-3 pb-2">
+              <div className="ml-4 mt-1 min-w-0 space-y-1 border-l border-zinc-800/50 pl-3 pb-2">
                 {run.summary && (
-                  <p className="text-xs text-zinc-400">{run.summary}</p>
+                  <p className="text-xs text-zinc-400 break-words">{run.summary}</p>
                 )}
                 {logError && (
                   <p className="text-[10px] text-red-400">{logError}</p>
@@ -254,7 +254,7 @@ export function AgentRuns({
                     <span className="text-[10px] text-zinc-600 shrink-0 mt-0.5">
                       {entryIcon(entry.entry_type)}
                     </span>
-                    <span className="text-xs text-zinc-400">
+                    <span className="min-w-0 flex-1 text-xs text-zinc-400 break-words">
                       {entry.content}
                     </span>
                     <span className="text-[10px] text-zinc-700 shrink-0 ml-auto">

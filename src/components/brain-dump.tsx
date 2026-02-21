@@ -191,7 +191,7 @@ function ThreadView({
             {rootDump.status}
           </span>
         </div>
-        <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+        <p className="text-sm text-zinc-300 whitespace-pre-wrap break-words leading-relaxed">
           {rootDump.content}
         </p>
         <div className="mt-2 flex justify-end">
@@ -227,7 +227,7 @@ function ThreadView({
                     />
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap leading-relaxed">
+                <p className="whitespace-pre-wrap break-words leading-relaxed">
                   {msg.content}
                 </p>
               </div>

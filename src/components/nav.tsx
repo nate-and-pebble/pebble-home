@@ -34,7 +34,7 @@ function SchemaBanner() {
         <p className="text-sm text-amber-300">
           Database migrations pending
         </p>
-        <p className="mt-1 text-xs text-amber-400/70">
+        <p className="mt-1 text-xs text-amber-400/70 break-words">
           Missing: {missing.join(", ")}. Run the latest SQL migrations in your Supabase dashboard.
         </p>
       </div>
@@ -53,8 +53,8 @@ export function Nav() {
 
   return (
     <nav className="border-b border-zinc-800/50">
-      <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 sm:gap-6">
+      <div className="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
             <span className="text-xl sm:text-2xl" role="img" aria-label="rock">

@@ -167,7 +167,7 @@ export function StatusIndicator() {
   const config = stateConfig[state];
 
   return (
-    <div className="flex items-center gap-2.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 max-w-xs">
+    <div className="flex items-center gap-2.5 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 min-w-0 max-w-[10rem] sm:max-w-xs">
       <span className="relative flex h-2 w-2 shrink-0">
         {config.pingClass && (
           <span

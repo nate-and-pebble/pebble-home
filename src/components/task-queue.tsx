@@ -301,7 +301,7 @@ export function TaskQueue({
                     )}
                   </div>
                   {task.description && (
-                    <p className="text-xs text-zinc-400 whitespace-pre-wrap">
+                    <p className="text-xs text-zinc-400 whitespace-pre-wrap break-words">
                       {task.description}
                     </p>
                   )}

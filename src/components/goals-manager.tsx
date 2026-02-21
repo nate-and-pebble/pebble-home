@@ -510,12 +510,12 @@ export function GoalsManager() {
                       /* View mode */
                       <>
                         {goal.description && (
-                          <p className="text-xs text-zinc-400 whitespace-pre-wrap">
+                          <p className="text-xs text-zinc-400 whitespace-pre-wrap break-words">
                             {goal.description}
                           </p>
                         )}
                         {action && (
-                          <div className="text-xs">
+                          <div className="text-xs break-words">
                             <span className="text-zinc-500">Next action: </span>
                             <span className="text-zinc-300">{action}</span>
                           </div>

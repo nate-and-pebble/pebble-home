@@ -166,7 +166,7 @@ export function Bulletins({
                 </div>
                 <p className="text-xs text-zinc-600">{timeAgo(b.created_at)}</p>
                 {isExpanded && b.content && (
-                  <p className="mt-2 text-sm text-zinc-400 whitespace-pre-wrap">
+                  <p className="mt-2 text-sm text-zinc-400 whitespace-pre-wrap break-words">
                     {b.content}
                   </p>
                 )}

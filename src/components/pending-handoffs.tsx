@@ -88,9 +88,9 @@ export function PendingHandoffs({ refreshKey }: { refreshKey?: number }) {
             <div className="flex items-start gap-2">
               <span className="text-amber-500 text-xs mt-0.5 shrink-0">~</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-zinc-300">{next}</p>
+                <p className="text-sm text-zinc-300 break-words">{next}</p>
                 {state && (
-                  <p className="text-xs text-zinc-500 mt-0.5">
+                  <p className="text-xs text-zinc-500 mt-0.5 break-words">
                     Left off: {state}
                   </p>
                 )}

@@ -71,7 +71,7 @@ function ExpandedDetail({ item }: { item: ActivityItem }) {
     <div className="mt-2 space-y-1.5 border-t border-zinc-800/50 pt-2">
       {/* Full content for brain dumps and bulletins */}
       {detail.fullContent ? (
-        <p className="text-xs text-zinc-400 whitespace-pre-wrap">
+        <p className="text-xs text-zinc-400 whitespace-pre-wrap break-words">
           {detail.fullContent}
         </p>
       ) : null}
@@ -186,7 +186,7 @@ export function ActivityFeed({ refreshKey }: { refreshKey?: number }) {
                   </span>
                   <StatusBadge status={item.status} />
                 </div>
-                <p className="text-sm text-zinc-300 mt-0.5">
+                <p className="text-sm text-zinc-300 mt-0.5 break-words">
                   {item.text}
                 </p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">
