@@ -36,6 +36,7 @@ export function Bulletins({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySending, setReplySending] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const fetchBulletins = useCallback(async () => {
     try {
@@ -94,6 +95,19 @@ export function Bulletins({
     }
   }
 
+  async function handleDelete(id: string) {
+    setBulletins((prev) => prev.filter((b) => b.id !== id));
+    setConfirmDeleteId(null);
+    setExpanded(null);
+    try {
+      const res = await fetch(`/api/bulletins/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      onReply?.();
+    } catch {
+      fetchBulletins();
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -120,6 +134,7 @@ export function Bulletins({
       {bulletins.map((b) => {
         const isNew = b.status === "new";
         const isExpanded = expanded === b.id;
+        const isConfirmingDelete = confirmDeleteId === b.id;
 
         return (
           <div
@@ -135,7 +150,9 @@ export function Bulletins({
             }}
           >
             <div className="flex items-start gap-2">
-              <span className="mt-0.5 text-sm">{isNew ? "📢" : "📋"}</span>
+              <span className="mt-0.5 text-sm shrink-0">
+                {isNew ? "📢" : "📋"}
+              </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-zinc-200 truncate">
@@ -154,59 +171,100 @@ export function Bulletins({
                   </p>
                 )}
                 {isExpanded && (
-                  <div className="mt-2">
-                    {replyingTo === b.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={replyContent}
-                          onChange={(e) => setReplyContent(e.target.value)}
-                          placeholder="Reply to Pebble..."
-                          rows={2}
-                          className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 transition-all duration-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && e.metaKey) {
-                              e.stopPropagation();
-                              handleReply(b);
-                            }
-                          }}
-                        />
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setReplyingTo(null);
-                              setReplyContent("");
+                  <div className="mt-2 flex items-center justify-between">
+                    <div>
+                      {replyingTo === b.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            placeholder="Reply to Pebble..."
+                            rows={2}
+                            className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 transition-all duration-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/25"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && e.metaKey) {
+                                e.stopPropagation();
+                                handleReply(b);
+                              }
                             }}
-                            className="rounded px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReply(b);
-                            }}
-                            disabled={!replyContent.trim() || replySending}
-                            className="rounded-lg bg-indigo-600 px-3 py-1 text-[10px] font-medium text-white transition-all duration-200 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
-                          >
-                            {replySending ? "Sending..." : "Send Reply"}
-                          </button>
+                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReplyingTo(null);
+                                setReplyContent("");
+                              }}
+                              className="rounded px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReply(b);
+                              }}
+                              disabled={!replyContent.trim() || replySending}
+                              className="rounded-lg bg-indigo-600 px-3 py-1 text-[10px] font-medium text-white transition-all duration-200 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97]"
+                            >
+                              {replySending ? "Sending..." : "Send Reply"}
+                            </button>
+                          </div>
                         </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReplyingTo(b.id);
+                          }}
+                          className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors"
+                        >
+                          Reply to Pebble
+                        </button>
+                      )}
+                    </div>
+                    {replyingTo !== b.id && (
+                      <div>
+                        {isConfirmingDelete ? (
+                          <span className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(b.id);
+                              }}
+                              className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-900/50 text-red-300 hover:bg-red-900/80 transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteId(null);
+                              }}
+                              className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(b.id);
+                            }}
+                            className="rounded px-1.5 py-0.5 text-[10px] text-zinc-600 hover:text-red-400 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReplyingTo(b.id);
-                        }}
-                        className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors"
-                      >
-                        Reply to Pebble
-                      </button>
                     )}
                   </div>
                 )}

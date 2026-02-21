@@ -45,3 +45,21 @@ export const PATCH = withAuth(
     return NextResponse.json(data);
   }
 );
+
+// DELETE /api/bulletins/:id - delete bulletin
+export const DELETE = withAuth(
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const { id } = await params;
+
+    const { error } = await getSupabase()
+      .from("bulletins")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ deleted: true });
+  }
+);

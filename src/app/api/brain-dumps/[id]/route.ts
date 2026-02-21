@@ -38,3 +38,28 @@ export const PATCH = withAuth(
     return NextResponse.json(data);
   }
 );
+
+// DELETE /api/brain-dumps/:id - delete brain dump and its thread replies
+export const DELETE = withAuth(
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const { id } = await params;
+
+    // Delete any thread replies first
+    await getSupabase()
+      .from("brain_dumps")
+      .delete()
+      .eq("metadata->>thread_id", id);
+
+    // Delete the brain dump itself
+    const { error } = await getSupabase()
+      .from("brain_dumps")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ deleted: true });
+  }
+);

@@ -23,12 +23,66 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+function DeleteButton({
+  onDelete,
+  label,
+}: {
+  onDelete: () => void;
+  label?: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <span className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+            setConfirming(false);
+          }}
+          className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-red-900/50 text-red-300 hover:bg-red-900/80 transition-colors"
+        >
+          Confirm
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirming(false);
+          }}
+          className="rounded px-1.5 py-0.5 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          Cancel
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setConfirming(true);
+      }}
+      className="rounded px-1.5 py-0.5 text-[10px] text-zinc-600 hover:text-red-400 transition-colors"
+      title={label || "Delete"}
+    >
+      {label || "Delete"}
+    </button>
+  );
+}
+
 function ThreadView({
   rootDump,
   onReplySent,
+  onDeleted,
 }: {
   rootDump: BrainDumpItem;
   onReplySent: () => void;
+  onDeleted: () => void;
 }) {
   const [thread, setThread] = useState<BrainDumpItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +108,6 @@ function ThreadView({
     fetchThread();
   }, [fetchThread]);
 
-  // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (thread.length > 1) {
       threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,6 +132,31 @@ function ThreadView({
       // silently fail
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleDeleteReply(replyId: string) {
+    try {
+      const res = await fetch(`/api/brain-dumps/${replyId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed");
+      fetchThread();
+      onReplySent();
+    } catch {
+      // silently fail
+    }
+  }
+
+  async function handleDeleteRoot() {
+    try {
+      const res = await fetch(`/api/brain-dumps/${rootDump.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed");
+      onDeleted();
+    } catch {
+      // silently fail
     }
   }
 
@@ -116,6 +194,9 @@ function ThreadView({
         <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
           {rootDump.content}
         </p>
+        <div className="mt-2 flex justify-end">
+          <DeleteButton onDelete={handleDeleteRoot} label="Delete thread" />
+        </div>
       </div>
 
       {/* Replies */}
@@ -127,7 +208,7 @@ function ThreadView({
             return (
               <div
                 key={msg.id}
-                className={`rounded-lg px-3 py-2.5 text-sm ${
+                className={`group rounded-lg px-3 py-2.5 text-sm ${
                   isPebble
                     ? "bg-indigo-950/30 border border-indigo-800/30 text-indigo-200 ml-2"
                     : "bg-zinc-800/30 border border-zinc-700/30 text-zinc-300 mr-2"
@@ -139,6 +220,11 @@ function ThreadView({
                   </span>
                   <span className="text-[10px] text-zinc-600">
                     {timeAgo(msg.created_at)}
+                  </span>
+                  <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DeleteButton
+                      onDelete={() => handleDeleteReply(msg.id)}
+                    />
                   </span>
                 </div>
                 <p className="whitespace-pre-wrap leading-relaxed">
@@ -167,7 +253,9 @@ function ThreadView({
           }}
         />
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-zinc-600">Cmd+Enter to send</span>
+          <span className="text-[10px] text-zinc-600 hidden sm:inline">
+            Cmd+Enter to send
+          </span>
           <button
             type="submit"
             disabled={!reply.trim() || sending}
@@ -361,9 +449,7 @@ export function BrainDump({
                               : "text-zinc-400 line-clamp-2"
                           }`}
                         >
-                          {isExpanded
-                            ? null
-                            : dump.content}
+                          {isExpanded ? null : dump.content}
                         </p>
                       </div>
 
@@ -385,13 +471,17 @@ export function BrainDump({
                           fetchRecentDumps();
                           onSaved?.();
                         }}
+                        onDeleted={() => {
+                          setExpandedId(null);
+                          fetchRecentDumps();
+                          onSaved?.();
+                        }}
                       />
                     )}
                   </div>
                 );
               })}
 
-              {/* Show more / less */}
               {hasMore && (
                 <button
                   onClick={() => setShowAll(!showAll)}
