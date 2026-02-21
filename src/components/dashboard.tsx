@@ -19,7 +19,7 @@ export function Dashboard() {
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-5">
         {/* Main column */}
-        <div className="space-y-8 lg:col-span-3">
+        <div className="min-w-0 space-y-8 lg:col-span-3">
           {/* Brain Dump */}
           <section>
             <div className="mb-3 flex items-center gap-2">
@@ -53,7 +53,7 @@ export function Dashboard() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-8 lg:col-span-2">
+        <div className="min-w-0 space-y-8 lg:col-span-2">
           {/* Task Queue */}
           <section>
             <div className="mb-3 flex items-center gap-2">

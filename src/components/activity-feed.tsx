@@ -78,19 +78,19 @@ function ExpandedDetail({ item }: { item: ActivityItem }) {
 
       {/* Description for tasks */}
       {detail.description ? (
-        <p className="text-xs text-zinc-400">{detail.description}</p>
+        <p className="text-xs text-zinc-400 break-words">{detail.description}</p>
       ) : null}
 
       {/* Priority for tasks */}
       {detail.priority ? (
-        <p className="text-[10px] text-zinc-500">
+        <p className="text-[10px] text-zinc-500 break-words">
           Priority: {String(detail.priority)}
         </p>
       ) : null}
 
       {/* Agent run details */}
       {type === "agent_run" && detail.agent_id ? (
-        <p className="text-[10px] text-zinc-500">
+        <p className="text-[10px] text-zinc-500 break-words">
           Agent: {String(detail.agent_id)}
           {detail.logCount !== undefined && detail.logCount > 0
             ? ` · ${detail.logCount} log entries`
@@ -100,21 +100,21 @@ function ExpandedDetail({ item }: { item: ActivityItem }) {
 
       {/* Linked items from metadata */}
       {detail.metadata?.spawned_tasks ? (
-        <p className="text-[10px] text-zinc-500">
+        <p className="text-[10px] text-zinc-500 break-words">
           Spawned tasks:{" "}
           {(detail.metadata.spawned_tasks as string[]).join(", ")}
         </p>
       ) : null}
 
       {detail.metadata?.source_brain_dump ? (
-        <p className="text-[10px] text-zinc-500">
+        <p className="text-[10px] text-zinc-500 break-words">
           From brain dump:{" "}
           {String(detail.metadata.source_brain_dump).slice(0, 8)}
         </p>
       ) : null}
 
       {detail.metadata?.reply_to_title ? (
-        <p className="text-[10px] text-zinc-500">
+        <p className="text-[10px] text-zinc-500 break-words">
           Reply to: {String(detail.metadata.reply_to_title)}
         </p>
       ) : null}
