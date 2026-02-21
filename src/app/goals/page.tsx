@@ -1,4 +1,5 @@
 import { Nav } from "@/components/nav";
+import { getSupabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -11,22 +12,22 @@ type Goal = {
   created_at: string;
 };
 
-type GoalsResponse = {
-  data: Goal[];
-  pagination?: { page: number; limit: number; total: number; pages: number };
-};
+async function getGoals(): Promise<Goal[]> {
+  const { data, error } = await getSupabase()
+    .from("goals")
+    .select("id, title, description, status, priority, created_at")
+    .order("created_at", { ascending: false });
 
-async function getGoals(): Promise<GoalsResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/goals`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return { data: [] };
-  return res.json();
+  if (error) {
+    console.error("Failed to fetch goals:", error.message);
+    return [];
+  }
+
+  return data || [];
 }
 
 export default async function GoalsPage() {
-  const json = await getGoals();
-  const goals = json?.data || [];
+  const goals = await getGoals();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
